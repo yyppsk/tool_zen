@@ -48,7 +48,7 @@
       border-radius: 9999px;
       border: none;
       cursor: pointer;
-      background: #111827;
+      background: #008417;
       color: #ffffff;
       box-shadow: 0 10px 25px rgba(0,0,0,0.24);
       display: inline-flex;
@@ -188,7 +188,11 @@
   }
 
   function applyPosition({ side, top }) {
-    const clampedTop = clamp(top, TOP_BOTTOM_MARGIN, window.innerHeight - BUBBLE_SIZE - TOP_BOTTOM_MARGIN);
+    const clampedTop = clamp(
+      top,
+      TOP_BOTTOM_MARGIN,
+      window.innerHeight - BUBBLE_SIZE - TOP_BOTTOM_MARGIN,
+    );
     host.style.top = `${clampedTop}px`;
 
     if (side === "left") {
@@ -205,11 +209,20 @@
 
   async function loadPosition() {
     const { fabPosition } = await storageGet({ fabPosition: null });
-    if (!fabPosition || (fabPosition.side !== "left" && fabPosition.side !== "right")) {
-      applyPosition({ side: "right", top: Math.max(80, window.innerHeight / 2 - BUBBLE_SIZE / 2) });
+    if (
+      !fabPosition ||
+      (fabPosition.side !== "left" && fabPosition.side !== "right")
+    ) {
+      applyPosition({
+        side: "right",
+        top: Math.max(80, window.innerHeight / 2 - BUBBLE_SIZE / 2),
+      });
       return;
     }
-    applyPosition({ side: fabPosition.side, top: Number(fabPosition.top) || 100 });
+    applyPosition({
+      side: fabPosition.side,
+      top: Number(fabPosition.top) || 100,
+    });
   }
 
   loadPosition().catch(() => {});
@@ -217,7 +230,10 @@
   window.addEventListener("resize", async () => {
     const { fabPosition } = await storageGet({ fabPosition: null });
     if (!fabPosition) return;
-    applyPosition({ side: fabPosition.side, top: Number(fabPosition.top) || 100 });
+    applyPosition({
+      side: fabPosition.side,
+      top: Number(fabPosition.top) || 100,
+    });
   });
 
   // ---- Menu open/close ----
@@ -257,7 +273,7 @@
       if (path.includes(host)) return;
       closeMenu();
     },
-    true
+    true,
   );
 
   // ---- Email extraction ----
@@ -310,7 +326,7 @@
     if (email) return email;
 
     const container =
-      label.closest('[data-test-id], li, dd, div, section, article') ||
+      label.closest("[data-test-id], li, dd, div, section, article") ||
       label.parentElement;
 
     email = extractEmailFromNode(container);
@@ -428,15 +444,11 @@
     }
     if (!dragging) return;
 
-    const left = clamp(
-      e.clientX - offsetX,
-      0,
-      window.innerWidth - BUBBLE_SIZE
-    );
+    const left = clamp(e.clientX - offsetX, 0, window.innerWidth - BUBBLE_SIZE);
     const top = clamp(
       e.clientY - offsetY,
       TOP_BOTTOM_MARGIN,
-      window.innerHeight - BUBBLE_SIZE - TOP_BOTTOM_MARGIN
+      window.innerHeight - BUBBLE_SIZE - TOP_BOTTOM_MARGIN,
     );
 
     host.style.left = `${left}px`;
