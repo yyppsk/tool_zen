@@ -341,39 +341,71 @@
   }
 
   function getTicketEmailNow() {
-    const label = document.querySelector('span[title="Email"]');
-    if (!label) return null;
+    // Zendesk can keep multiple ticket panes mounted; inactive ones are typically hidden
+    // (display:none, aria-hidden, inert, or shifted off-screen). Don't use querySelector(),
+    // because it can return the first (inactive) ticket's email.
+    const valueNodes = Array.from(
+      document.querySelectorAll(
+        '[data-test-id="email-field-test-id"] [data-test-id="email-value-test-id"]',
+      ),
+    );
 
-    // If the span itself contains the email (as described), this will capture it.
-    let email = extractEmailFromNode(label);
-    if (email) return email;
+    const isVisible = (el) => {
+      if (!el) return false;
 
-    const container =
-      label.closest("[data-test-id], li, dd, div, section, article") ||
-      label.parentElement;
+      const field = el.closest('[data-test-id="email-field-test-id"]') || el;
 
-    email = extractEmailFromNode(container);
-    if (email) return email;
+      // Hidden by accessibility or native hidden attribute
+      if (field.closest("[hidden], [aria-hidden='true'], [inert]"))
+        return false;
 
-    if (label.nextElementSibling) {
-      email = extractEmailFromNode(label.nextElementSibling);
-      if (email) return email;
-    }
+      // If it's not in layout (common for inactive panes)
+      if (field.offsetParent === null) return false;
 
-    if (label.parentElement?.nextElementSibling) {
-      email = extractEmailFromNode(label.parentElement.nextElementSibling);
-      if (email) return email;
-    }
+      const style = window.getComputedStyle(field);
+      if (style.display === "none" || style.visibility === "hidden")
+        return false;
 
-    // Walk up a few levels near the label (Zendesk markup can vary).
-    let p = label.parentElement;
-    for (let i = 0; i < 4 && p; i++) {
-      email = extractEmailFromNode(p);
-      if (email) return email;
-      p = p.parentElement;
-    }
+      const rect = field.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) return false;
 
-    return null;
+      // If shifted completely off-screen horizontally, treat as inactive.
+      if (rect.right <= 0 || rect.left >= window.innerWidth) return false;
+
+      return true;
+    };
+
+    const visible = valueNodes.filter(isVisible);
+
+    const pickBest = (els) => {
+      if (!els.length) return null;
+
+      // Prefer the one closest to the viewport center (2D) in case multiple are visible.
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+
+      let best = els[0];
+      let bestDist = Infinity;
+
+      for (const el of els) {
+        const r = el.getBoundingClientRect();
+        const mx = (r.left + r.right) / 2;
+        const my = (r.top + r.bottom) / 2;
+        const dist = Math.abs(mx - cx) + Math.abs(my - cy); // Manhattan distance
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = el;
+        }
+      }
+
+      return best;
+    };
+
+    const node = pickBest(visible) || valueNodes[0];
+    if (!node) return null;
+
+    const raw = node.getAttribute("title") || node.textContent || "";
+    return sanitizeEmail(raw);
   }
 
   function waitForTicketEmail(timeoutMs = 3000) {
