@@ -123,6 +123,22 @@
     .option:active { transform: translateY(0px); }
 
     .icon { width: 22px; height: 22px; display: block; }
+    .tooltip {
+      position: absolute;
+      background: rgba(17,24,39,0.95);
+      color: #fff;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(2px);
+      transition: opacity 120ms ease, transform 120ms ease;
+      z-index: 3;
+    }
+    .tooltip[data-visible="true"] { opacity: 1; transform: translateY(0); }
   `;
 
   const wrapper = document.createElement("div");
@@ -173,6 +189,13 @@
 
   menu.appendChild(btnPayments);
   menu.appendChild(btnStandard);
+
+  // Tooltip element for option buttons (in shadow DOM so native title tooltips don't rely on host)
+  const tooltip = document.createElement("div");
+  tooltip.className = "tooltip";
+  tooltip.setAttribute("role", "tooltip");
+  tooltip.dataset.visible = "false";
+  wrapper.appendChild(tooltip);
 
   wrapper.appendChild(menu);
   wrapper.appendChild(fab);
@@ -408,6 +431,51 @@
     e.preventDefault();
     e.stopPropagation();
     openVrc(true);
+  });
+
+  // Tooltip helpers
+  function showOptionTooltip(btn, text) {
+    if (!btn || !text) return;
+    tooltip.textContent = text;
+    // Temporarily make visible to measure
+    tooltip.dataset.visible = "false";
+    tooltip.style.left = "0px";
+    tooltip.style.top = "0px";
+    // Allow layout
+    requestAnimationFrame(() => {
+      const btnRect = btn.getBoundingClientRect();
+      const wrapRect = wrapper.getBoundingClientRect();
+      const ttRect = tooltip.getBoundingClientRect();
+
+      // Default: show to the right of the button
+      let left = btnRect.right - wrapRect.left + 8;
+      // If wrapper is on the right side, show to the left
+      if (wrapper.dataset.side === "right") {
+        left = btnRect.left - wrapRect.left - ttRect.width - 8;
+      }
+      // Vertically center on the button
+      const top =
+        btnRect.top - wrapRect.top + (btnRect.height - ttRect.height) / 2;
+
+      tooltip.style.left = `${Math.round(left)}px`;
+      tooltip.style.top = `${Math.round(top)}px`;
+      tooltip.dataset.visible = "true";
+    });
+  }
+
+  function hideOptionTooltip() {
+    tooltip.dataset.visible = "false";
+  }
+
+  // Show custom tooltip on hover (pointerenter/leave) and hide on pointerdown
+  [btnStandard, btnPayments].forEach((b) => {
+    b.addEventListener("pointerenter", (e) => {
+      const txt = b.getAttribute("title") || b.getAttribute("aria-label") || "";
+      showOptionTooltip(b, txt);
+    });
+    b.addEventListener("pointerleave", hideOptionTooltip);
+    b.addEventListener("pointercancel", hideOptionTooltip);
+    b.addEventListener("pointerdown", hideOptionTooltip);
   });
 
   // ---- Dragging ----
