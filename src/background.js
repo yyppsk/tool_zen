@@ -35,9 +35,35 @@ function compareSemver(a, b) {
   return 0;
 }
 
+
+const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+
+function sanitizeEmailInput(raw) {
+  let email = String(raw || "").trim();
+
+  // If someone accidentally passed "Emailxyz@..." (label stuck to address),
+  // strip a leading "Email" if that produces a valid email.
+  if (/^email/i.test(email)) {
+    const stripped = email.replace(/^email[:\s]*/i, "");
+    if (EMAIL_RE.test(stripped)) email = stripped;
+  }
+
+  // Remove trailing punctuation/whitespace
+  email = email.replace(/[),.;:\s]+$/g, "");
+
+  // As a final safety, if the string still doesn't look like an email,
+  // try to extract a valid email substring.
+  if (!EMAIL_RE.test(email)) {
+    const m = email.match(EMAIL_RE);
+    if (m) email = m[0];
+  }
+
+  return email;
+}
+
 function buildVrcUrl(email, includePayments) {
   const url = new URL("https://vrc.a8c.com/");
-  url.searchParams.set("user_query", email);
+  url.searchParams.set("user_query", sanitizeEmailInput(email));
   url.searchParams.set("user_type", "wpcom");
 
   if (includePayments) {
@@ -152,7 +178,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const type = message?.type;
 
   if (type === "OPEN_VRC") {
-    const email = String(message?.email || "").trim();
+    const email = sanitizeEmailInput(message?.email);
     if (!email) return;
     const includePayments = Boolean(message?.includePayments);
     const url = buildVrcUrl(email, includePayments);

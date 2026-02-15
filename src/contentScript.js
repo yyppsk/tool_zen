@@ -262,7 +262,28 @@
 
   // ---- Email extraction ----
   function sanitizeEmail(email) {
-    return String(email || "").trim().replace(/[),.;\s]+$/g, "");
+    let out = String(email || "").trim();
+
+    // Remove common label prefixes like "Email:" or "E-mail:"
+    out = out.replace(/^(e-?mail)[:\s]*/i, "");
+
+    // If the label got concatenated with the address (e.g. "Emailjohn@doe.com"),
+    // strip a leading "Email" if that produces a valid email.
+    if (/^email/i.test(out)) {
+      const stripped = out.replace(/^email/i, "");
+      if (EMAIL_RE.test(stripped)) out = stripped;
+    }
+
+    // Trim trailing punctuation/spaces
+    out = out.replace(/[),.;:\s]+$/g, "");
+
+    // If still not a clean email, try extracting a valid substring.
+    if (!EMAIL_RE.test(out)) {
+      const match = out.match(EMAIL_RE);
+      if (match) out = match[0];
+    }
+
+    return out;
   }
 
   function extractEmailFromNode(node) {
